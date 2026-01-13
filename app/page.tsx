@@ -1,65 +1,121 @@
-import Image from "next/image";
+"use client"
+import { useEffect, useState } from "react"
+import { useFetchRawData, useSubmitCleanedData } from "@/lib/queries"
 
 export default function Home() {
+  const { data, isLoading, refetch, isError } = useFetchRawData()
+  const submit = useSubmitCleanedData()
+
+  const [editor, setEditor] = useState("")
+  const [score, setScore] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (data) {
+      setEditor(JSON.stringify(data, null, 2))
+    }
+  }, [data])
+
+  const handleSubmit = async () => {
+    try {
+      setError(null)
+      const parsed = JSON.parse(editor)
+
+      // API returns { batch_id, records, metadata }
+      const cleanedItems = parsed.records ?? parsed
+
+      const result = await submit.mutateAsync({
+        candidateName: "Faheem",
+        batchId: parsed.batch_id || "batch-1",
+        cleanedItems,
+      })
+
+      setScore(result.result.validation.score)
+    } catch {
+      setError("Invalid JSON format. Fix it before submitting.")
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-black text-emerald-200 flex justify-center px-6 py-10">
+      <div className="w-full max-w-6xl">
+
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-emerald-400">
+              DATA CLEANER
+            </h1>
+            <p className="text-emerald-500 mt-1">
+              Receive, review, clean and submit unreliable API data
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Status Bar */}
+        <div className="mb-4 flex items-center gap-4">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-cyan-400">
+              <Spinner />
+              Fetching data from LumiCore…
+            </div>
+          )}
+
+          {isError && (
+            <div className="text-red-400">
+              <strong>API error — retrying…</strong>
+            </div>
+          )}
+
+          {score !== null && (
+            <div className="ml-auto bg-emerald-900/30 border border-emerald-600 text-emerald-400 px-4 py-2 rounded-lg">
+              Score: <b>{score}</b> / 100
+            </div>
+          )}
         </div>
-      </main>
+
+        {/* Editor */}
+        <div className="bg-black border border-emerald-900 rounded-xl overflow-hidden shadow-xl">
+          <div className="px-4 py-3 border-b border-emerald-900 flex justify-between items-center">
+            <span className="text-sm text-emerald-400">Raw / Edited JSON</span>
+            <span className="text-xs text-emerald-600">
+              Edit and normalize before submitting
+            </span>
+          </div>
+
+          <textarea
+            value={editor}
+            onChange={(e) => setEditor(e.target.value)}
+            className="w-full h-[420px] bg-black text-emerald-200 caret-cyan-400 font-mono text-sm p-4 outline-none resize-none"
+          />
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mt-4 bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Submit */}
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleSubmit}
+            disabled={submit.isPending}
+            className="bg-emerald-600 hover:bg-emerald-500 transition px-6 py-3 rounded-lg font-medium flex items-center gap-3 text-black disabled:opacity-50"
+          >
+            {submit.isPending && <Spinner />}
+            Submit Cleaned Data
+          </button>
+        </div>
+      </div>
     </div>
-  );
+  )
+}
+
+/* Small loading spinner */
+function Spinner() {
+  return (
+    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+  )
 }
