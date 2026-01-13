@@ -77,7 +77,7 @@ The frontend never deals with broken or inconsistent data.
 
 ---
 
-## Why this design
+## Purpose
 
 The LumiCore API is intentionally unreliable.
 We isolate it behind a backend so the UI always stays stable.
